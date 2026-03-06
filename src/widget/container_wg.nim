@@ -10,11 +10,16 @@ type
 
 const forbiddenKeyBind = {Key.Tab, Key.None}
 
-
-proc newContainer*(px, py, w, h: int, id = "", title = "",
-                  border = true, bgColor = bgNone,
-                  fgColor = fgWhite, widgets = newSeq[ref BaseWidget](),
-                  tb = newTerminalBuffer(w+2, h + py)): Container =
+proc newContainer*(
+    px, py, w, h: int,
+    id = "",
+    title = "",
+    border = true,
+    bgColor = bgNone,
+    fgColor = fgWhite,
+    widgets = newSeq[ref BaseWidget](),
+    tb = newTerminalBuffer(w + 2, h + py),
+): Container =
   let padding = if border: 1 else: 0
   let style = WidgetStyle(
     paddingX1: padding,
@@ -23,9 +28,9 @@ proc newContainer*(px, py, w, h: int, id = "", title = "",
     paddingY2: padding,
     border: border,
     fgColor: fgColor,
-    bgColor: bgColor
+    bgColor: bgColor,
   )
- 
+
   result = Container(
     width: w,
     height: h,
@@ -37,21 +42,27 @@ proc newContainer*(px, py, w, h: int, id = "", title = "",
     style: style,
     groups: true,
     events: initTable[string, EventFn[Container]](),
-    keyEvents: initTable[Key, EventFn[Container]]()
+    keyEvents: initTable[Key, EventFn[Container]](),
   )
   result.channel = newChan[WidgetBgEvent]()
   result.keepOriginalSize()
 
-
-proc newContainer*(px, py: int, w, h: WidgetSize, id = "", title = "",
-                  border = true, bgColor = bgNone,
-                  fgColor = fgWhite, widgets = newSeq[ref BaseWidget](),
-                  tb = newTerminalBuffer(w.toInt + 2, h.toInt + py)): Container =
-  let width = toConsoleWidth(w) 
+proc newContainer*(
+    px, py: int,
+    w, h: WidgetSize,
+    id = "",
+    title = "",
+    border = true,
+    bgColor = bgNone,
+    fgColor = fgWhite,
+    widgets = newSeq[ref BaseWidget](),
+    tb = newTerminalBuffer(w.toInt + 2, h.toInt + py),
+): Container =
+  let width = toConsoleWidth(w)
   let height = toConsoleHeight(h)
-  return newContainer(px, py, width, height, id, title,
-                      border, bgColor, fgColor, widgets, tb) 
-
+  return newContainer(
+    px, py, width, height, id, title, border, bgColor, fgColor, widgets, tb
+  )
 
 proc newContainer*(id: string): Container =
   var container = Container(
@@ -64,14 +75,13 @@ proc newContainer*(id: string): Container =
       paddingY2: 1,
       border: true,
       bgColor: bgWhite,
-      fgColor: fgBlack
+      fgColor: fgBlack,
     ),
     events: initTable[string, EventFn[Container]](),
-    keyEvents: initTable[Key, EventFn[Container]]()
+    keyEvents: initTable[Key, EventFn[Container]](),
   )
   container.channel = newChan[WidgetBgEvent]()
   return container
-
 
 proc add*(ctr: Container, wg: ref BaseWidget, width: float, height: float) =
   # calculate w, h in container
@@ -99,8 +109,6 @@ proc add*(ctr: Container, wg: ref BaseWidget, width: float, height: float) =
   wg.tb = ctr.tb
   ctr.widgets.add(wg)
 
-
-
 method setChildTb*(ctr: Container, tb: TerminalBuffer): void =
   for w in ctr.widgets:
     w.tb = tb
@@ -108,31 +116,29 @@ method setChildTb*(ctr: Container, tb: TerminalBuffer): void =
 proc on*(ctr: Container, event: string, fn: EventFn[Container]) =
   ctr.events[event] = fn
 
-
-proc on*(ctr: Container, key: Key, fn: EventFn[Container]) {.raises: [EventKeyError]} =
-  if key in forbiddenKeyBind: 
-    raise newException(EventKeyError, $key & " is used for widget default behavior, forbidden to overwrite")
+proc on*(ctr: Container, key: Key, fn: EventFn[Container]) {.raises: [EventKeyError].} =
+  if key in forbiddenKeyBind:
+    raise newException(
+      EventKeyError,
+      $key & " is used for widget default behavior, forbidden to overwrite",
+    )
   ctr.keyEvents[key] = fn
-    
 
 method call*(ctr: Container, event: string, args: varargs[string]) =
   if ctr.events.hasKey(event):
     let fn = ctr.events[event]
     fn(ctr, args)
 
-
 method call*(ctr: ContainerObj, event: string, args: varargs[string]) =
   if ctr.events.hasKey(event):
     let fn = ctr.events[event]
     let ctrRef = ctr.asRef()
     fn(ctrRef, args)
-    
 
 proc call(ctr: Container, key: Key) =
   if ctr.keyEvents.hasKey(key):
     let fn = ctr.keyEvents[key]
     fn(ctr)
-
 
 method render*(ctr: Container) =
   ctr.clear()
@@ -142,7 +148,6 @@ method render*(ctr: Container) =
     if w.visibility:
       w.rerender()
   ctr.tb.display()
-
 
 proc baseControl(ctr: Container) =
   # container widget
@@ -160,26 +165,27 @@ proc baseControl(ctr: Container) =
         ctr.call(key)
       #ctr.render()
 
-
 method onUpdate*(ctr: Container, key: Key) =
   case key
   of Key.Tab, Key.None:
     if ctr.cursor == 0:
       ctr.baseControl
-    if not ctr.focus: return
-    if ctr.cursor > ctr.widgets.len: ctr.cursor = 0
+    if not ctr.focus:
+      return
+    if ctr.cursor > ctr.widgets.len:
+      ctr.cursor = 0
     ctr.widgets[ctr.cursor - 1].onControl()
     inc ctr.cursor
-  of Key.Escape: 
+  of Key.Escape:
     ctr.focus = false
-  else: discard
+  else:
+    discard
   ctr.render()
- 
 
 method onControl*(ctr: Container) =
   # another main loop for the child widget
   ctr.focus = true
-  for w in ctr.widgets: 
+  for w in ctr.widgets:
     w.blocking = true
     w.illwillInit = true
   while ctr.focus:
@@ -188,10 +194,5 @@ method onControl*(ctr: Container) =
     var key = getKeyWithTimeout(ctr.rpms)
     ctr.onUpdate(key)
 
-
-method wg*(ctr: Container): ref BaseWidget = ctr
-
-
-
-
-
+method wg*(ctr: Container): ref BaseWidget =
+  ctr

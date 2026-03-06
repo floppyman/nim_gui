@@ -1,6 +1,6 @@
 import illwill, os, strutils, std/terminal, math, options
-import malebolgia, threading/channels, std/tasks, sequtils, std/enumerate
-import 
+import malebolgia, threading/channels, std/tasks, sequtils
+import
   widget/base_wg,
   widget/display_wg,
   widget/input_box_wg,
@@ -21,32 +21,16 @@ import
   widget/yaml_display_wg
 
 export
-  base_wg,
-  display_wg,
-  input_box_wg,
-  button_wg,
-  checkbox_wg,
-  table_wg,
-  progress_wg,
-  listview_wg,
-  label_wg,
-  gauge_wg,
-  textarea_wg,
-  container_wg,
-  illwill,
-  chart_wg,
-  dropdown_wg,
-  md_display_wg,
-  heatmap_wg,
-  json_display_wg,
-  yaml_display_wg
+  base_wg, display_wg, input_box_wg, button_wg, checkbox_wg, table_wg, progress_wg,
+  listview_wg, label_wg, gauge_wg, textarea_wg, container_wg, illwill, chart_wg,
+  dropdown_wg, md_display_wg, heatmap_wg, json_display_wg, yaml_display_wg
 
 type
   TerminalApp* = object
     width: int
     height: int
     title: string
-    bgColor: illwill.BackgroundColor 
+    bgColor: illwill.BackgroundColor
     fgColor: illwill.ForegroundColor
     cursor: int = 0
     fullscreen: bool = true
@@ -57,17 +41,20 @@ type
     rpms: int = 50
     origWidth: int
     origHeight: int
-    mouseEnabled: bool = false 
+    mouseEnabled: bool = false
 
   SizeOverflow = object of CatchableError
 
+var bgChannel = newChan[Task]()
 
-var bgChannel = newChan[Task]() 
-
-proc newTerminalApp*(tb: TerminalBuffer = newTerminalBuffer(terminalWidth(),
-                     terminalHeight()), title: string = "", border: bool = false,
-                     bgColor = illwill.bgNone, fgColor = illwill.fgWhite,
-                     rpms: int = 20): TerminalApp =
+proc newTerminalApp*(
+    tb: TerminalBuffer = newTerminalBuffer(terminalWidth(), terminalHeight()),
+    title: string = "",
+    border: bool = false,
+    bgColor = illwill.bgNone,
+    fgColor = illwill.fgWhite,
+    rpms: int = 20,
+): TerminalApp =
   result = TerminalApp(
     width: terminalWidth(),
     height: terminalHeight(),
@@ -80,13 +67,11 @@ proc newTerminalApp*(tb: TerminalBuffer = newTerminalBuffer(terminalWidth(),
     tb: tb,
     origWidth: terminalWidth(),
     origHeight: terminalHeight(),
-    mouseEnabled: false # disabled by default
+    mouseEnabled: false, # disabled by default
   )
-
 
 proc terminalBuffer*(app: var TerminalApp): var TerminalBuffer =
   app.tb
-
 
 proc addWidget*(app: var TerminalApp, widget: ref BaseWidget) =
   widget.tb = app.terminalBuffer
@@ -96,9 +81,7 @@ proc addWidget*(app: var TerminalApp, widget: ref BaseWidget) =
   widget.keepOriginalSize()
   app.widgets.add(widget)
 
-
-proc addWidget*(app: var TerminalApp, widget: ref BaseWidget, 
-                width: int, height: int) =
+proc addWidget*(app: var TerminalApp, widget: ref BaseWidget, width: int, height: int) =
   if app.widgets.len == 0:
     widget.posX = 1
     widget.posY = 1
@@ -115,34 +98,33 @@ proc addWidget*(app: var TerminalApp, widget: ref BaseWidget,
   widget.width = min(widget.posX + width, consoleWidth())
   widget.height = min(widget.posY + height, consoleHeight())
   widget.resize()
-  app.addWidget(widget) 
+  app.addWidget(widget)
 
-
-proc addWidget*(app: var TerminalApp, widget: ref BaseWidget, 
-                width, height: WidgetSize ) =
+proc addWidget*(
+    app: var TerminalApp, widget: ref BaseWidget, width, height: WidgetSize
+) =
   let w = toConsoleWidth(width)
   let h = toConsoleHeight(height)
   app.addWidget(widget, w, h)
 
-
-proc addWidget*(app: var TerminalApp, widget: ref BaseWidget, 
-                width: int, height: WidgetSize) =
+proc addWidget*(
+    app: var TerminalApp, widget: ref BaseWidget, width: int, height: WidgetSize
+) =
   let h = toConsoleHeight(height)
   app.addWidget(widget, width, h)
 
-
-proc addWidget*(app: var TerminalApp, widget: ref BaseWidget, 
-                width: WidgetSize, height: int = 0) =
+proc addWidget*(
+    app: var TerminalApp, widget: ref BaseWidget, width: WidgetSize, height: int = 0
+) =
   let w = toConsoleWidth(width)
   let h = if height == 1: 0 else: height
   app.addWidget(widget, w, h)
 
-
-proc addWidget*(app: var TerminalApp, 
-                widget: ref BaseWidget,
-                width, height, 
-                offsetLeft, offsetTop, 
-                offsetRight, offsetBottom: int) {.raises: [SizeOverflow, Exception].} =
+proc addWidget*(
+    app: var TerminalApp,
+    widget: ref BaseWidget,
+    width, height, offsetLeft, offsetTop, offsetRight, offsetBottom: int,
+) {.raises: [SizeOverflow, Exception].} =
   if app.widgets.len == 0:
     widget.posX = max(1 + offsetLeft, 1)
     widget.posY = max(1 + offsetTop, 1)
@@ -167,110 +149,120 @@ proc addWidget*(app: var TerminalApp,
         widget.posX = max(widget.posX - offsetRight, app.widgets[^1].width + 1)
       widget.posY = max(widget.posY - offsetBottom, app.widgets[^1].posY)
 
-
   widget.width = min(widget.posX + width, consoleWidth())
   widget.height = min(widget.posY + height, consoleHeight())
   widget.resize()
-  app.addWidget(widget) 
+  app.addWidget(widget)
 
-
-
-proc addWidget*(app: var TerminalApp, 
-                widget: ref BaseWidget,
-                width: WidgetSize, 
-                height: int, 
-                offsetLeft, offsetTop, 
-                offsetRight, offsetBottom: int) {.raises: [SizeOverflow, Exception].} =
+proc addWidget*(
+    app: var TerminalApp,
+    widget: ref BaseWidget,
+    width: WidgetSize,
+    height: int,
+    offsetLeft, offsetTop, offsetRight, offsetBottom: int,
+) {.raises: [SizeOverflow, Exception].} =
   let w = toConsoleWidth(width)
   let h = if height == 1: 0 else: height
   app.addWidget(widget, w, h, offsetLeft, offsetTop, offsetRight, offsetBottom)
 
-
-proc addWidget*(app: var TerminalApp,
-                widget: ref BaseWidget,
-                width: int, 
-                height: WidgetSize, 
-                offsetLeft, offsetTop, 
-                offsetRight, offsetBottom: int) {.raises: [SizeOverflow, Exception].} =
+proc addWidget*(
+    app: var TerminalApp,
+    widget: ref BaseWidget,
+    width: int,
+    height: WidgetSize,
+    offsetLeft, offsetTop, offsetRight, offsetBottom: int,
+) {.raises: [SizeOverflow, Exception].} =
   let h = toConsoleHeight(height)
   app.addWidget(widget, width, h, offsetLeft, offsetTop, offsetRight, offsetBottom)
 
-
-proc addWidget*(app: var TerminalApp,
-                widget: ref BaseWidget,
-                width, height: WidgetSize, 
-                offsetLeft, offsetTop, 
-                offsetRight, offsetBottom: int) {.raises: [SizeOverflow, Exception].} =
+proc addWidget*(
+    app: var TerminalApp,
+    widget: ref BaseWidget,
+    width, height: WidgetSize,
+    offsetLeft, offsetTop, offsetRight, offsetBottom: int,
+) {.raises: [SizeOverflow, Exception].} =
   let w = toConsoleWidth(width)
   let h = toConsoleHeight(height)
   app.addWidget(widget, w, h, offsetLeft, offsetTop, offsetRight, offsetBottom)
 
-
-proc addWidget*(app: var TerminalApp,
-                widget: ref BaseWidget,
-                width, height, 
-                offsetLeft, offsetTop, 
-                offsetRight, offsetBottom: WidgetSize) {.raises: [SizeOverflow, Exception].} =
+proc addWidget*(
+    app: var TerminalApp,
+    widget: ref BaseWidget,
+    width, height, offsetLeft, offsetTop, offsetRight, offsetBottom: WidgetSize,
+) {.raises: [SizeOverflow, Exception].} =
   let totalWidth = consoleWidth()
   let totalHeight = consoleHeight()
-  
+
   # Convert offsets to actual pixel/character values
   let oleft = toConsoleWidth(offsetLeft)
   let otop = toConsoleHeight(offsetTop)
   let oright = toConsoleWidth(offsetRight)
   let obtm = toConsoleHeight(offsetBottom)
-  
+
   # Position widget starts from the offset
   widget.posX = oleft + 1
   widget.posY = otop + 1
-  
+
   # Calculate end positions - if offset is 0, go to the edge
-  let endX = if oright == 0: totalWidth else: totalWidth - oright
-  let endY = if obtm == 0: totalHeight else: totalHeight - obtm
-  
+  let endX =
+    if oright == 0:
+      totalWidth
+    else:
+      totalWidth - oright
+  let endY =
+    if obtm == 0:
+      totalHeight
+    else:
+      totalHeight - obtm
+
   # Widget dimensions are from start position to end position
   let w = toConsoleWidth(width)
   let h = toConsoleHeight(height)
   widget.width = min(oleft + w, totalWidth)
   widget.height = min(otop + h, totalHeight)
-  
+
   # widget.resize()
   app.addWidget(widget)
 
 proc widgets*(app: var TerminalApp): seq[ref BaseWidget] =
   app.widgets
 
-
 proc `[]=`*(app: var TerminalApp, id: string, widget: ref BaseWidget) =
   widget.id = id
   app.addWidget(widget)
 
-
-proc `[]=`*(app: var TerminalApp, id: string, widget: ref BaseWidget,
-            width, height: WidgetSize) =
+proc `[]=`*(
+    app: var TerminalApp, id: string, widget: ref BaseWidget, width, height: WidgetSize
+) =
   widget.id = id
   app.addWidget(widget, width, height)
 
-
-proc `[]=`*(app: var TerminalApp, id: string, widget: ref BaseWidget,
-            width: WidgetSize, height: int) =
+proc `[]=`*(
+    app: var TerminalApp,
+    id: string,
+    widget: ref BaseWidget,
+    width: WidgetSize,
+    height: int,
+) =
   widget.id = id
   app.addWidget(widget, width, height)
 
-
-proc `[]=`*(app: var TerminalApp, id: string, widget: ref BaseWidget,
-            width: int, height: WidgetSize) =
+proc `[]=`*(
+    app: var TerminalApp,
+    id: string,
+    widget: ref BaseWidget,
+    width: int,
+    height: WidgetSize,
+) =
   widget.id = id
   app.addWidget(widget, width, height)
-
 
 proc `[]`*(app: var TerminalApp, id: string): Option[ref BaseWidget] =
-  result = none(ref BaseWidget) 
+  result = none(ref BaseWidget)
   for w in app.widgets:
     if w.id == id:
       result = some(w.wg)
       break
-
 
 proc requiredSize*(app: var TerminalApp): (int, int, int) =
   var w, h: int = 0
@@ -281,16 +273,16 @@ proc requiredSize*(app: var TerminalApp): (int, int, int) =
       h = wg.height
   return (w, h, w * h)
 
-
 proc renderAppFrame(app: var TerminalApp) =
   app.tb.fill(0, 0, app.width, app.height, app.bgColor, app.fgColor)
   let (w, h, requiredSize) = app.requiredSize()
-  if app.border: app.tb.drawRect(0, 0, w + 1, h + 1)
+  if app.border:
+    app.tb.drawRect(0, 0, w + 1, h + 1)
   let title: string = ansiStyleCode(styleBright) & app.title
-  if app.title != "": app.tb.write(2, 0, app.bgColor, title)
+  if app.title != "":
+    app.tb.write(2, 0, app.bgColor, title)
 
-
-proc render*(app: var TerminalApp, nonBlocking=false) =
+proc render*(app: var TerminalApp, nonBlocking = false) =
   for w in app.widgets:
     if w.visibility:
       try:
@@ -298,16 +290,13 @@ proc render*(app: var TerminalApp, nonBlocking=false) =
       except:
         w.onError(getCurrentExceptionMsg())
 
-
 proc widgetInit(app: var TerminalApp) =
   for w in app.widgets:
     w.illwillInit = true
 
-
 proc setWidgetBlocking(app: var TerminalApp) =
   for w in app.widgets:
     w.blocking = true
-    
 
 proc runInBackground*(task: sink Task) =
   ## Sending task to background thread via channel
@@ -319,21 +308,19 @@ proc runInBackground*(task: sink Task) =
   ##   let httpCallTask = toTask httpCall(addr app, display.id, url)
   ##   runInBackground(httpCallTask)
   ##
-  bgChannel.send(task) 
+  bgChannel.send(task)
 
-
-proc notify*(app: ptr TerminalApp, id: string, event: string, 
-             args: varargs[string]) =
+proc notify*(app: ptr TerminalApp, id: string, event: string, args: varargs[string]) =
   ## Notify widget via its channel, then widget will be poll
   ## by main thread and widget event will be called
   ## note that there is only string args supported.
-  ## 
+  ##
   ## **Example**
   ## .. code-block::
   ##   display.on("refresh", proc(dp: ref Display, args: varargs[string]) =
   ##     dp.text = args[0]
   ##   )
-  ## You may be making a http call and the call is coming back in a later 
+  ## You may be making a http call and the call is coming back in a later
   ## time, the task is running in background and you want it to notify
   ## you once the result is ready. Then, you can using notify inside
   ## the background task
@@ -350,14 +337,10 @@ proc notify*(app: ptr TerminalApp, id: string, event: string,
   ##       notify(app, id, "refresh", getCurrentExceptionMsg())
   let arguments = args.toSeq()
   for w in app.widgets:
-    if w.id == id: 
-      w.channel.send(WidgetBgEvent(
-        widgetId: id,
-        event: event,
-        args: arguments,
-        error: ""
-        ))
-
+    if w.id == id:
+      w.channel.send(
+        WidgetBgEvent(widgetId: id, event: event, args: arguments, error: "")
+      )
 
 proc backgroundTasks() {.thread.} =
   while true:
@@ -367,11 +350,9 @@ proc backgroundTasks() {.thread.} =
     except:
       echo getCurrentExceptionMsg()
 
-
 proc pollWidgetChannel(app: var TerminalApp) =
   for w in app.widgets:
     w.poll()
-
 
 proc nonBlockingControl(app: var TerminalApp) =
   if app.widgets[app.cursor].blocking:
@@ -379,12 +360,13 @@ proc nonBlockingControl(app: var TerminalApp) =
     inc app.cursor
   else:
     inc app.cursor
-    if app.cursor > app.widgets.len - 1: app.cursor = 0
-
+    if app.cursor > app.widgets.len - 1:
+      app.cursor = 0
 
 proc resize(app: var TerminalApp): bool =
   # resize
-  if not app.autoResize: return false
+  if not app.autoResize:
+    return false
   let origWidth = app.origWidth
   let origHeight = app.origHeight
   let windWidth = terminalWidth()
@@ -395,7 +377,7 @@ proc resize(app: var TerminalApp): bool =
     app.height = windHeight
     app.tb = newTerminalBuffer(windWidth, windHeight)
     var index = 0
-    for w in  app.widgets:
+    for w in app.widgets:
       # ----------------w
       #                 |
       #                 |
@@ -430,13 +412,11 @@ proc resize(app: var TerminalApp): bool =
     return true
   else:
     return false
-    
 
 proc exitProc() {.noconv.} =
   illwillDeinit()
   showCursor()
   quit(0)
-
 
 proc go(app: var TerminalApp) =
   illwillInit(fullscreen = app.fullscreen, mouse = app.mouseEnabled)
@@ -445,23 +425,28 @@ proc go(app: var TerminalApp) =
 
   let (w, h, requiredSize) = app.requiredSize()
   if requiredSize > (terminalWidth() * terminalHeight()):
-    stdout.styledWriteLine(terminal.fgWhite, terminal.bgRed,
-                           center("terminal width and height cannot fit application.",
-                               terminalWidth()))
-    stdout.styledWriteLine(terminal.fgWhite, terminal.bgRed,
-                           center("width: " & $w & " height: " & $h, terminalWidth()))
+    stdout.styledWriteLine(
+      terminal.fgWhite,
+      terminal.bgRed,
+      center("terminal width and height cannot fit application.", terminalWidth()),
+    )
+    stdout.styledWriteLine(
+      terminal.fgWhite,
+      terminal.bgRed,
+      center("width: " & $w & " height: " & $h, terminalWidth()),
+    )
     stdout.resetAttributes()
     stdout.flushFile()
     quit(0)
-  
+
   # init widgets
   app.widgetInit()
 
   var threadMaster = createMaster()
   threadMaster.spawn backgroundTasks()
-  
+
   app.tb.clear()
-  app.renderAppFrame() 
+  app.renderAppFrame()
   while true:
     if app.resize():
       app.tb.clear()
@@ -474,7 +459,7 @@ proc go(app: var TerminalApp) =
     of Key.Tab:
       app.widgets[app.cursor].focus = false
       app.nonBlockingControl()
-    of Key.Mouse:  # Handle mouse events
+    of Key.Mouse: # Handle mouse events
       if app.mouseEnabled:
         let mouseInfo = getMouse()
         for widget in app.widgets:
@@ -488,7 +473,6 @@ proc go(app: var TerminalApp) =
       app.pollWidgetChannel()
       app.render()
 
-
 proc hold(app: var TerminalApp) =
   illwillInit(fullscreen = app.fullscreen, mouse = app.mouseEnabled)
   setControlCHook(exitProc)
@@ -496,15 +480,20 @@ proc hold(app: var TerminalApp) =
 
   let (w, h, requiredSize) = app.requiredSize()
   if requiredSize > (terminalWidth() * terminalHeight()):
-    stdout.styledWriteLine(terminal.fgWhite, terminal.bgRed,
-                           center("terminal width and height cannot fit application.",
-                               terminalWidth()))
-    stdout.styledWriteLine(terminal.fgWhite, terminal.bgRed,
-                           center("width: " & $w & " height: " & $h, terminalWidth()))
+    stdout.styledWriteLine(
+      terminal.fgWhite,
+      terminal.bgRed,
+      center("terminal width and height cannot fit application.", terminalWidth()),
+    )
+    stdout.styledWriteLine(
+      terminal.fgWhite,
+      terminal.bgRed,
+      center("width: " & $w & " height: " & $h, terminalWidth()),
+    )
     stdout.resetAttributes()
     stdout.flushFile()
     quit(0)
-  
+
   # init widgets
   app.widgetInit()
 
@@ -523,29 +512,29 @@ proc hold(app: var TerminalApp) =
     case key
     of Key.Tab, Key.None:
       try:
-        if app.cursor > app.widgets.len - 1: app.cursor = 0
+        if app.cursor > app.widgets.len - 1:
+          app.cursor = 0
         app.widgets[app.cursor].onControl()
       except:
         let err = getCurrentException()
         app.widgets[app.cursor].onError(err.getStackTrace())
       inc app.cursor
-    of Key.Mouse:  # Handle mouse events in blocking mode
+    of Key.Mouse: # Handle mouse events in blocking mode
       if app.mouseEnabled:
         let mouseInfo = getMouse()
         for widget in app.widgets:
           if widget.visibility and widget.contains(mouseInfo.x, mouseInfo.y):
             widget.onMouseEvent(mouseInfo)
-    else: discard
-    
+    else:
+      discard
+
     sleep(app.rpms)
 
-
-
-proc run*(app: var TerminalApp, nonBlocking=false) =
+proc run*(app: var TerminalApp, nonBlocking = false) =
   if nonBlocking:
     # running non blocking
     app.go()
   else:
-    # run and hold on one control 
+    # run and hold on one control
     app.hold()
   illwillDeinit()
