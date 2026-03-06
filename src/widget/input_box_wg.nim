@@ -1,5 +1,5 @@
 import illwill, strutils, base_wg, sequtils, encodings
-import tables, threading/channels, os, osproc, streams
+import tables, threading/channels
 
 type
   InputBoxObj* = object of BaseWidget

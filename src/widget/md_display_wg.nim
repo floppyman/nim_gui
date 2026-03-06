@@ -1,5 +1,4 @@
-import
-  illwill, base_wg, os, std/wordwrap, strutils, options, tables, re, std/sequtils, sets
+import illwill, base_wg, os, std/wordwrap, strutils, options, tables, std/sequtils
 import threading/channels
 
 type

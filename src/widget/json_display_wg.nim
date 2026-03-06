@@ -1,15 +1,4 @@
-import
-  illwill,
-  base_wg,
-  os,
-  std/wordwrap,
-  strutils,
-  options,
-  tables,
-  json,
-  algorithm,
-  sequtils,
-  input_box_wg
+import illwill, base_wg, os, strutils, tables, json, sequtils, input_box_wg
 import threading/channels
 
 type
