@@ -17,13 +17,12 @@ import
   widget/dropdown_wg,
   widget/md_display_wg,
   widget/heatmap_wg,
-  widget/json_display_wg,
-  widget/yaml_display_wg
+  widget/json_display_wg
 
 export
   base_wg, display_wg, input_box_wg, button_wg, checkbox_wg, table_wg, progress_wg,
   listview_wg, label_wg, gauge_wg, textarea_wg, container_wg, illwill, chart_wg,
-  dropdown_wg, md_display_wg, heatmap_wg, json_display_wg, yaml_display_wg
+  dropdown_wg, md_display_wg, heatmap_wg, json_display_wg
 
 type
   TerminalApp* = object
