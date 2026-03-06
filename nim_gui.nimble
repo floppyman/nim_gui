@@ -1,6 +1,6 @@
 # Package
 
-version       = "1.0.1"
+version       = "1.0.2"
 author        = "floppyman"
 description   = "NIM Library to handle a UI in the terminal"
 license       = "MIT"
