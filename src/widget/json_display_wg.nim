@@ -16,10 +16,10 @@ type
   JsonViewerObj* = object of BaseWidget
     rootNode: JsonNode
     nodes: seq[JsonNodeData]
-    visibleNodes: seq[int] # indices of visible nodes
+    visibleNodes: seq[int]  # indices of visible nodes
     selectedNode: int
     searchText: string
-    searchResults: seq[int] # indices of nodes matching search
+    searchResults: seq[int]  # indices of nodes matching search
     currentSearchIndex: int
     filePath: string
     events*: Table[string, EventFn[JsonViewer]]
@@ -37,23 +37,16 @@ proc ensureNodeVisible(jv: JsonViewer, nodeIndex: int): void
 proc renderStatusbar(jv: JsonViewer): void
 
 # Allow ShiftW for binding
-const forbiddenKeyBind = {
-  Key.Tab, Key.Escape, Key.None, Key.Up, Key.Down, Key.PageUp, Key.PageDown, Key.Home,
-  Key.End, Key.Left, Key.Right,
-}
+const forbiddenKeyBind = {Key.Tab, Key.Escape, Key.None, Key.Up,
+                          Key.Down, Key.PageUp, Key.PageDown, Key.Home,
+                          Key.End, Key.Left, Key.Right}
 
-proc newJsonViewer*(
-    px, py, w, h: int,
-    id = "",
-    title: string = "",
-    jsonData: string = "",
-    filePath: string = "",
-    border: bool = true,
-    statusbar = true,
-    bgColor: BackgroundColor = bgNone,
-    fgColor: ForegroundColor = fgWhite,
-    tb: TerminalBuffer = newTerminalBuffer(w + 2, h + py),
-): JsonViewer =
+proc newJsonViewer*(px, py, w, h: int, id = "";
+                    title: string = "", jsonData: string = "", filePath: string = "",
+                    border: bool = true, statusbar = true,
+                    bgColor: BackgroundColor = bgNone,
+                    fgColor: ForegroundColor = fgWhite,
+                    tb: TerminalBuffer = newTerminalBuffer(w + 2, h + py)): JsonViewer =
   let padding = if border: 1 else: 0
   let statusbarSize = if statusbar: 1 else: 0
   let style = WidgetStyle(
@@ -63,7 +56,7 @@ proc newJsonViewer*(
     paddingY2: padding,
     border: border,
     fgColor: fgColor,
-    bgColor: bgColor,
+    bgColor: bgColor
   )
   result = (JsonViewer)(
     width: w,
@@ -80,19 +73,22 @@ proc newJsonViewer*(
     filePath: filePath,
     selectedNode: 0,
     events: initTable[string, EventFn[JsonViewer]](),
-    keyEvents: initTable[Key, EventFn[JsonViewer]](),
+    keyEvents: initTable[Key, EventFn[JsonViewer]]()
   )
-  result.helpText =
-    " [Enter] toggle expand/collapse\n" & " [←/→]   scroll left/right\n" &
-    " [/]     search\n" & " [n]     next search result\n" &
-    " [N]     previous search result\n" & " [Ctrl+S] save changes\n" &
-    " [?]     for help\n" & " [Tab]   to go next widget\n" &
-    " [Esc]   to exit this window"
-
+  result.helpText = " [Enter] toggle expand/collapse\n" &
+                    " [←/→]   scroll left/right\n" &
+                    " [/]     search\n" &
+                    " [n]     next search result\n" &
+                    " [N]     previous search result\n" &
+                    " [Ctrl+S] save changes\n" &
+                    " [?]     for help\n" &
+                    " [Tab]   to go next widget\n" & 
+                    " [Esc]   to exit this window"
+ 
   result.channel = newChan[WidgetBgEvent]()
   result.on(Key.QuestionMark, help)
   result.keepOriginalSize()
-
+  
   # Parse initial JSON data
   if jsonData.len > 0:
     try:
@@ -107,6 +103,7 @@ proc newJsonViewer*(
     except:
       result.text = "Invalid JSON file"
 
+
 proc newJsonViewer*(id: string): JsonViewer =
   var viewer = JsonViewer(
     id: id,
@@ -117,47 +114,48 @@ proc newJsonViewer*(id: string): JsonViewer =
       paddingY2: 1,
       border: true,
       bgColor: bgNone,
-      fgColor: fgWhite,
+      fgColor: fgWhite
     ),
     events: initTable[string, EventFn[JsonViewer]](),
-    keyEvents: initTable[Key, EventFn[JsonViewer]](),
+    keyEvents: initTable[Key, EventFn[JsonViewer]]()
   )
 
-  viewer.helpText =
-    " [Enter] toggle expand/collapse\n" & " [←/→]   scroll left/right\n" &
-    " [/]     search\n" & " [n]     next search result\n" &
-    " [N]     previous search result\n" & " [Ctrl+S] save changes\n" &
-    " [?]     for help\n" & " [Tab]   to go next widget\n" &
-    " [Esc]   to exit this window"
+  viewer.helpText = " [Enter] toggle expand/collapse\n" &
+                    " [←/→]   scroll left/right\n" &
+                    " [/]     search\n" &
+                    " [n]     next search result\n" &
+                    " [N]     previous search result\n" &
+                    " [Ctrl+S] save changes\n" &
+                    " [?]     for help\n" &
+                    " [Tab]   to go next widget\n" & 
+                    " [Esc]   to exit this window"
   viewer.on(Key.QuestionMark, help)
   viewer.channel = newChan[WidgetBgEvent]()
   return viewer
 
+
 proc buildNodeTree(jv: JsonViewer) =
   jv.nodes = @[]
   jv.visibleNodes = @[]
-
+  
   if jv.rootNode.isNil:
     return
-
+  
   proc traverse(node: JsonNode, key: string, level: int, parentExpanded: bool) =
     let nodeIndex = jv.nodes.len
-    jv.nodes.add(
-      JsonNodeData(
-        key: key,
-        value: node,
-        expanded: node.kind in {JObject, JArray} and level < 1,
-          # Auto-expand first level
-        level: level,
-        visible: parentExpanded,
-        lineIndex: 0,
-        isLastChild: false,
-      )
-    )
-
+    jv.nodes.add(JsonNodeData(
+      key: key,
+      value: node,
+      expanded: node.kind in {JObject, JArray} and level < 1,  # Auto-expand first level
+      level: level,
+      visible: parentExpanded,
+      lineIndex: 0,
+      isLastChild: false
+    ))
+    
     if parentExpanded:
       jv.visibleNodes.add(nodeIndex)
-
+    
     if node.kind == JObject:
       let keys = node.keys.toSeq()
       for i, k in keys:
@@ -167,6 +165,7 @@ proc buildNodeTree(jv: JsonViewer) =
         traverse(childNode, k, level + 1, childExpanded)
         if isLast and jv.nodes.len > 0:
           jv.nodes[jv.nodes.high].isLastChild = true
+          
     elif node.kind == JArray:
       for i, item in node.getElems:
         let isLast = (i == node.len - 1)
@@ -174,9 +173,11 @@ proc buildNodeTree(jv: JsonViewer) =
         traverse(item, "[" & $i & "]", level + 1, childExpanded)
         if isLast and jv.nodes.len > 0:
           jv.nodes[jv.nodes.high].isLastChild = true
-
+  
   traverse(jv.rootNode, "root", 0, true)
   jv.updateVisibleNodes()
+
+
 
 proc updateVisibleNodes(jv: JsonViewer) =
   jv.visibleNodes = @[]
@@ -187,12 +188,13 @@ proc updateVisibleNodes(jv: JsonViewer) =
     else:
       jv.nodes[i].lineIndex = -1
 
+
 proc toggleNode(jv: JsonViewer, nodeIndex: int) =
   if jv.nodes[nodeIndex].value.kind notin {JObject, JArray}:
     return
-
+  
   jv.nodes[nodeIndex].expanded = not jv.nodes[nodeIndex].expanded
-
+  
   # Update visibility of children recursively
   proc updateChildVisibility(startIndex: int, parentLevel: int, shouldShow: bool) =
     var i = startIndex + 1
@@ -200,19 +202,17 @@ proc toggleNode(jv: JsonViewer, nodeIndex: int) =
       if jv.nodes[i].level == parentLevel + 1:
         # Direct child
         jv.nodes[i].visible = shouldShow
-        if shouldShow and jv.nodes[i].expanded and
-            jv.nodes[i].value.kind in {JObject, JArray}:
+        if shouldShow and jv.nodes[i].expanded and jv.nodes[i].value.kind in {JObject, JArray}:
           # Recursively show grandchildren if this child is expanded
           updateChildVisibility(i, jv.nodes[i].level, true)
         elif not shouldShow:
           # Hide all descendants
           updateChildVisibility(i, jv.nodes[i].level, false)
       inc(i)
-
-  updateChildVisibility(
-    nodeIndex, jv.nodes[nodeIndex].level, jv.nodes[nodeIndex].expanded
-  )
+  
+  updateChildVisibility(nodeIndex, jv.nodes[nodeIndex].level, jv.nodes[nodeIndex].expanded)
   jv.updateVisibleNodes()
+
 
 proc formatNodeValue(jv: JsonViewer, node: JsonNodeData): string =
   case node.value.kind
@@ -227,33 +227,25 @@ proc formatNodeValue(jv: JsonViewer, node: JsonNodeData): string =
   of JNull:
     result = "null"
   of JObject:
-    result =
-      if node.expanded:
-        "{...}"
-      else:
-        "{...} (" & $node.value.len & " items)"
+    result = if node.expanded: "{...}" else: "{...} (" & $node.value.len & " items)"
   of JArray:
-    result =
-      if node.expanded:
-        "[...]"
-      else:
-        "[...] (" & $node.value.len & " items)"
+    result = if node.expanded: "[...]" else: "[...] (" & $node.value.len & " items)"
 
 proc renderNode(jv: JsonViewer, nodeIndex: int, lineIndex: int): string =
   let node = jv.nodes[nodeIndex]
   var prefix = ""
-
+  
   # Add indentation
-  for i in 1 ..< node.level:
+  for i in 1..<node.level:
     prefix.add("  ")
-
+  
   # Add tree structure
   if node.level > 0:
     if node.isLastChild:
       prefix.add("`- ")
     else:
       prefix.add("|- ")
-
+  
   # Add expand/collapse indicator
   if node.value.kind in {JObject, JArray}:
     if node.expanded:
@@ -262,36 +254,37 @@ proc renderNode(jv: JsonViewer, nodeIndex: int, lineIndex: int): string =
       prefix.add("+ ")
   else:
     prefix.add("  ")
-
+  
   # Format the node
   var fullLine = ""
   if node.key == "root":
     fullLine = prefix & "(root) " & jv.formatNodeValue(node)
   else:
     fullLine = prefix & node.key & ": " & jv.formatNodeValue(node)
-
+  
   # Add selection indicator
   if nodeIndex == jv.selectedNode:
     fullLine = "> " & fullLine
   else:
     fullLine = "  " & fullLine
-
+  
   # Apply horizontal scrolling
   let availableWidth = jv.width - (if jv.border: 2 else: 0)
   if fullLine.len > jv.horizontalOffset:
     let endPos = min(fullLine.len, jv.horizontalOffset + availableWidth)
-    result = fullLine[jv.horizontalOffset ..< endPos]
+    result = fullLine[jv.horizontalOffset..<endPos]
   else:
     result = ""
+
 
 proc search(jv: JsonViewer, searchText: string) =
   jv.searchText = searchText
   jv.searchResults = @[]
   jv.currentSearchIndex = 0
-
+  
   if searchText.len == 0:
     return
-
+  
   for i, node in jv.nodes:
     # Search in key
     if node.key.toLower().contains(searchText.toLower()):
@@ -300,46 +293,39 @@ proc search(jv: JsonViewer, searchText: string) =
     elif node.value.kind in {JString, JInt, JFloat, JBool}:
       var valueStr = ""
       case node.value.kind
-      of JString:
-        valueStr = node.value.getStr()
-      of JInt:
-        valueStr = $node.value.getInt()
-      of JFloat:
-        valueStr = $node.value.getFloat()
-      of JBool:
-        valueStr = if node.value.getBool(): "true" else: "false"
-      else:
-        discard
-
+      of JString: valueStr = node.value.getStr()
+      of JInt: valueStr = $node.value.getInt()
+      of JFloat: valueStr = $node.value.getFloat()
+      of JBool: valueStr = if node.value.getBool(): "true" else: "false"
+      else: discard
+      
       if valueStr.toLower().contains(searchText.toLower()):
         jv.searchResults.add(i)
-
+  
   if jv.searchResults.len > 0:
     jv.selectedNode = jv.searchResults[0]
     # Make sure the selected node is visible
     jv.ensureNodeVisible(jv.selectedNode)
 
+
 proc onSearch(jv: JsonViewer) =
   jv.renderStatusBar()
   # Position search input at the top of the widget
-  var input = newInputBox(
-    jv.x1,
-    jv.y1 + 1, # Position at top, below title
-    jv.x2,
-    jv.y1 + 3, # Small height for input
-    title = "search",
-    tb = jv.tb,
-  )
+  var input = newInputBox(jv.x1, jv.y1 + 1,  # Position at top, below title
+                         jv.x2, jv.y1 + 3,    # Small height for input
+                         title="search",
+                         tb=jv.tb)
   let enterEv = proc(ib: InputBox, x: varargs[string]) =
     jv.search(ib.value)
     jv.searchInput = ib.value
     input.focus = false
     input.remove()
-
+  
   # passing enter event as a callback
   input.illwillInit = true
   input.on("enter", enterEv)
   input.onControl()
+
 
 proc ensureNodeVisible(jv: JsonViewer, nodeIndex: int) =
   # Expand all parents to make node visible
@@ -351,6 +337,7 @@ proc ensureNodeVisible(jv: JsonViewer, nodeIndex: int) =
     dec(i)
   jv.updateVisibleNodes()
 
+
 proc nextSearchResult(jv: JsonViewer) =
   if jv.searchResults.len == 0:
     return
@@ -358,13 +345,14 @@ proc nextSearchResult(jv: JsonViewer) =
   jv.selectedNode = jv.searchResults[jv.currentSearchIndex]
   jv.ensureNodeVisible(jv.selectedNode)
 
+
 proc prevSearchResult(jv: JsonViewer) =
   if jv.searchResults.len == 0:
     return
-  jv.currentSearchIndex =
-    (jv.currentSearchIndex - 1 + jv.searchResults.len) mod jv.searchResults.len
+  jv.currentSearchIndex = (jv.currentSearchIndex - 1 + jv.searchResults.len) mod jv.searchResults.len
   jv.selectedNode = jv.searchResults[jv.currentSearchIndex]
   jv.ensureNodeVisible(jv.selectedNode)
+
 
 proc saveToFile(jv: JsonViewer) =
   if jv.filePath.len > 0:
@@ -374,34 +362,32 @@ proc saveToFile(jv: JsonViewer) =
       # Handle error - could add error display
       discard
 
-proc help(jv: JsonViewer, args: varargs[string]) =
+
+proc help(jv: JsonViewer, args: varargs[string]) = 
   let wsize = ((jv.width - jv.posX).toFloat * 0.3).toInt()
   let hsize = ((jv.height - jv.posY).toFloat * 0.3).toInt()
-  var viewer = newJsonViewer(
-    jv.x2 - wsize,
-    jv.y2 - hsize,
-    wsize,
-    hsize,
-    title = "help",
-    bgColor = bgWhite,
-    fgColor = fgBlack,
-    tb = jv.tb,
-    statusbar = false,
-  )
-  var helpText: string =
-    if jv.helpText == "":
-      " [Enter] toggle expand/collapse\n" & " [←/→]   scroll left/right\n" &
-        " [/]     search\n" & " [n]     next search result\n" &
-        " [N]     previous search result\n" & " [Ctrl+S] save changes\n" &
-        " [?]     for help\n" & " [Tab]   to go next widget\n" &
-        " [Esc]   to exit this window"
-    else:
-      jv.helpText
+  var viewer = newJsonViewer(jv.x2 - wsize, jv.y2 - hsize, 
+                          wsize, hsize, title="help",
+                          bgColor=bgWhite, fgColor=fgBlack,
+                          tb=jv.tb, statusbar=false)
+  var helpText: string = if jv.helpText == "":
+    " [Enter] toggle expand/collapse\n" &
+    " [←/→]   scroll left/right\n" &
+    " [/]     search\n" &
+    " [n]     next search result\n" &
+    " [N]     previous search result\n" &
+    " [Ctrl+S] save changes\n" &
+    " [?]     for help\n" &
+    " [Tab]   to go next widget\n" & 
+    " [Esc]   to exit this window"
+  else: jv.helpText
   viewer.text = helpText
   viewer.illwillInit = true
   jv.render()
   viewer.onControl()
   viewer.clear()
+
+
 
 proc renderStatusbar(jv: JsonViewer) =
   if jv.events.hasKey("statusbar"):
@@ -413,43 +399,41 @@ proc renderStatusbar(jv: JsonViewer) =
     elif jv.searchResults.len > 0:
       statusText &= "Match " & $(jv.currentSearchIndex + 1) & "/" & $jv.searchResults.len
     else:
-      statusText &=
-        "Line " & $(jv.nodes[jv.selectedNode].lineIndex + 1) & "/" & $jv.visibleNodes.len
+      statusText &= "Line " & $(jv.nodes[jv.selectedNode].lineIndex + 1) & "/" & $jv.visibleNodes.len
       if jv.horizontalOffset > 0:
         statusText &= " | H-scroll: " & $jv.horizontalOffset
-
+    
     let borderSize = if jv.border: 2 else: 1
     statusText = statusText & " ".repeat(jv.width - statusText.len - borderSize)
     jv.renderCleanRect(jv.x1, jv.height, jv.x1 + statusText.len - 1, jv.height)
     jv.tb.write(jv.x1, jv.height - 1, bgWhite, fgBlack, statusText, resetStyle)
-
+    
     let q = "[?]"
     jv.tb.write(jv.x2 - len(q), jv.height - 1, bgWhite, fgBlack, q, resetStyle)
+  
+  if jv.border: jv.renderBorder()
 
-  if jv.border:
-    jv.renderBorder()
 
 method resize*(jv: JsonViewer) =
   let statusbarSize = if jv.statusbar: 1 else: 0
   jv.size = jv.height - statusbarSize - jv.posY - (jv.paddingY1 * 2)
 
+
 proc on*(jv: JsonViewer, event: string, fn: EventFn[JsonViewer]) =
   jv.events[event] = fn
 
-proc on*(
-    jv: JsonViewer, key: Key, fn: EventFn[JsonViewer]
-) {.raises: [EventKeyError].} =
-  if key in forbiddenKeyBind:
-    raise newException(
-      EventKeyError,
-      $key & " is used for widget default behavior, forbidden to overwrite",
-    )
+
+proc on*(jv: JsonViewer, key: Key, fn: EventFn[JsonViewer]) {.raises: [EventKeyError].} =
+  if key in forbiddenKeyBind: 
+    raise newException(EventKeyError, $key & " is used for widget default behavior, forbidden to overwrite")
   jv.keyEvents[key] = fn
+
 
 method call*(jv: JsonViewer, event: string, args: varargs[string]) =
   if jv.events.hasKey(event):
     let fn = jv.events[event]
     fn(jv, args)
+
 
 method call*(jv: JsonViewerObj, event: string, args: varargs[string]) =
   if jv.events.hasKey(event):
@@ -457,35 +441,37 @@ method call*(jv: JsonViewerObj, event: string, args: varargs[string]) =
     let fn = jv.events[event]
     fn(jvRef, args)
 
+
 proc call(jv: JsonViewer, key: Key, args: varargs[string]) =
   if jv.keyEvents.hasKey(key):
     let fn = jv.keyEvents[key]
     fn(jv, args)
 
+
 method render*(jv: JsonViewer) =
-  if not jv.illwillInit:
-    return
+  if not jv.illwillInit: return
   jv.clear()
   jv.renderBorder()
   jv.renderTitle()
-
+  
   var index = 1
   if jv.visibleNodes.len > 0:
     let startLine = min(jv.rowCursor, jv.visibleNodes.len - 1)
     let endLine = min(startLine + jv.size - 1, jv.visibleNodes.len - 1)
-
-    for i in startLine .. endLine:
+    
+    for i in startLine..endLine:
       let nodeIndex = jv.visibleNodes[i]
       var line = jv.renderNode(nodeIndex, i)
       if line.len > (jv.x2 - jv.x1):
-        line = line[0 .. (min(jv.x2 - jv.x1, line.len))]
+        line = line[0..(min(jv.x2 - jv.x1, line.len))]
       jv.renderRow(line, index)
       inc index
-
+  
   if jv.statusbar:
     jv.renderStatusbar()
-
+  
   jv.tb.display()
+
 
 method poll*(jv: JsonViewer) =
   var widgetEv: WidgetBgEvent
@@ -494,14 +480,14 @@ method poll*(jv: JsonViewer) =
     jv.render()
 
 method onUpdate*(jv: JsonViewer, key: Key) =
-  if jv.visibility == false:
+  if jv.visibility == false: 
     jv.rowCursor = 0
     jv.selectedNode = 0
     jv.horizontalOffset = 0
     return
-
-  jv.call("preupdate", $key)
-
+  
+  jv.call("preupdate", $key) 
+  
   # Handle search input mode
   if jv.searchMode:
     jv.onSearch()
@@ -509,8 +495,7 @@ method onUpdate*(jv: JsonViewer, key: Key) =
   else:
     # Normal navigation mode
     case key
-    of Key.None:
-      discard
+    of Key.None: discard
     of Key.Up:
       if jv.visibleNodes.len > 0:
         let currentIndex = jv.nodes[jv.selectedNode].lineIndex
@@ -529,15 +514,15 @@ method onUpdate*(jv: JsonViewer, key: Key) =
             jv.rowCursor = min(jv.rowCursor + 1, max(0, jv.visibleNodes.len - jv.size))
     of Key.Left:
       # Horizontal scroll left
-      jv.horizontalOffset = max(0, jv.horizontalOffset - 4) # Scroll by 4 characters
+      jv.horizontalOffset = max(0, jv.horizontalOffset - 4)  # Scroll by 4 characters
     of Key.Right:
       # Horizontal scroll right
-      jv.horizontalOffset += 4 # Scroll by 4 characters
+      jv.horizontalOffset += 4  # Scroll by 4 characters
     of Key.Enter:
       jv.toggleNode(jv.selectedNode)
-    of Key.Slash: # Search
+    of Key.Slash:  # Search
       jv.searchMode = true
-    of Key.N: # Next search result
+    of Key.N:  # Next search result
       jv.nextSearchResult()
       # Reset horizontal scroll when jumping to search results
       jv.horizontalOffset = 0
@@ -547,7 +532,7 @@ method onUpdate*(jv: JsonViewer, key: Key) =
         jv.rowCursor = selectedLineIndex
       elif selectedLineIndex >= jv.rowCursor + jv.size:
         jv.rowCursor = max(0, selectedLineIndex - jv.size + 1)
-    of Key.P: # Previous search result
+    of Key.P:  # Previous search result
       jv.prevSearchResult()
       # Reset horizontal scroll when jumping to search results
       jv.horizontalOffset = 0
@@ -568,13 +553,12 @@ method onUpdate*(jv: JsonViewer, key: Key) =
       jv.rowCursor = min(jv.rowCursor + jv.size, max(0, jv.visibleNodes.len - jv.size))
       # Update selected node to last visible node
       if jv.visibleNodes.len > 0:
-        let newIndex =
-          min(jv.visibleNodes.len - 1, jv.nodes[jv.selectedNode].lineIndex + jv.size)
+        let newIndex = min(jv.visibleNodes.len - 1, jv.nodes[jv.selectedNode].lineIndex + jv.size)
         if newIndex < jv.visibleNodes.len:
           jv.selectedNode = jv.visibleNodes[newIndex]
     of Key.Home:
       jv.rowCursor = 0
-      jv.horizontalOffset = 0 # Reset horizontal scroll
+      jv.horizontalOffset = 0  # Reset horizontal scroll
       if jv.visibleNodes.len > 0:
         jv.selectedNode = jv.visibleNodes[0]
     of Key.End:
@@ -583,19 +567,18 @@ method onUpdate*(jv: JsonViewer, key: Key) =
         jv.selectedNode = jv.visibleNodes[jv.visibleNodes.len - 1]
     of Key.Escape, Key.Tab:
       jv.focus = false
-    of Key.CtrlS: # Save
+    of Key.CtrlS:  # Save
       jv.saveToFile()
     else:
-      if key in forbiddenKeyBind:
-        discard
+      if key in forbiddenKeyBind: discard
       elif jv.keyEvents.hasKey(key):
         jv.call(key, "")
-
+  
   jv.render()
   jv.call("postupdate", $key)
 
 method onControl*(jv: JsonViewer) =
-  if jv.visibility == false:
+  if jv.visibility == false: 
     jv.rowCursor = 0
     jv.selectedNode = 0
     return
@@ -606,13 +589,15 @@ method onControl*(jv: JsonViewer) =
     jv.onUpdate(key)
     sleep(jv.rpms)
 
-method wg*(jv: JsonViewer): ref BaseWidget =
-  jv
 
-proc text*(jv: JsonViewer): string =
+method wg*(jv: JsonViewer): ref BaseWidget = jv
+
+
+proc text*(jv: JsonViewer): string = 
   if not jv.rootNode.isNil:
     return jv.rootNode.pretty()
   return ""
+
 
 proc `text=`*(jv: JsonViewer, jsonData: string) =
   try:
@@ -621,6 +606,7 @@ proc `text=`*(jv: JsonViewer, jsonData: string) =
     jv.render()
   except:
     jv.onError("Invalid JSON data")
+
 
 proc loadFromFile*(jv: JsonViewer, filePath: string) =
   jv.filePath = filePath
@@ -631,10 +617,12 @@ proc loadFromFile*(jv: JsonViewer, filePath: string) =
   except:
     jv.onError("Failed to load JSON file: " & filePath)
 
+
 proc getNodeValue*(jv: JsonViewer, nodeIndex: int): JsonNode =
   if nodeIndex >= 0 and nodeIndex < jv.nodes.len:
     return jv.nodes[nodeIndex].value
   return nil
+
 
 proc setNodeValue*(jv: JsonViewer, nodeIndex: int, value: JsonNode) =
   if nodeIndex >= 0 and nodeIndex < jv.nodes.len:
@@ -642,8 +630,9 @@ proc setNodeValue*(jv: JsonViewer, nodeIndex: int, value: JsonNode) =
     # Rebuild tree to reflect changes
     jv.buildNodeTree()
 
-proc getSelectedNode*(jv: JsonViewer): int =
-  jv.selectedNode
+
+proc getSelectedNode*(jv: JsonViewer): int = jv.selectedNode
+
 
 proc setSelectedNode*(jv: JsonViewer, nodeIndex: int) =
   if nodeIndex >= 0 and nodeIndex < jv.nodes.len:
